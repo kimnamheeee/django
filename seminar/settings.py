@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     'account',
     'tag',
     'comment',
+    'corsheaders',
+    'rest_framework',
     'rest_framework_simplejwt',
     "rest_framework_simplejwt.token_blacklist"
 ]
@@ -42,7 +44,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -129,7 +131,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
 }
@@ -146,3 +148,22 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN': 'access_token',
     'REFRESH_TOKEN': 'refresh_token',
 }
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:3000', 
+    'http://localhost:3000',
+]
+
+CORS_ALLOWED_ORIGINS= [ # (헤더) Access-Control-Allow-Origin 에 담을 주소들
+    'http://127.0.0.1:3000', 
+    'http://localhost:3000',
+]
+CORS_ALLOW_CREDENTIALS = True # cookie를 주고받으려면 얘를 True로 설정해야 해요.
+CORS_ALLOW_HEADERS = (
+    "accept",
+    "authorization",
+    "content-type",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+)
