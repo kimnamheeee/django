@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+from .serializers import UserSerializer, UserProfileSerializer, UserIdUsernameSerializer
 
 from .serializers import UserSerializer,UserProfileSerializer
 from .models import UserProfile
@@ -20,7 +21,14 @@ def set_token_on_response_cookie(user:User) -> Response:
     res.set_cookie('access_token', value=str(token.access_token))
     return res
 
-
+class UserInfoView(APIView):
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({"detail": "로그인 후 다시 시도해주세요."}, status=status.HTTP_401_UNAUTHORIZED)
+        user = request.user
+        profile = UserProfile.objects.get(user=user)
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class SignupView(APIView):
     def post(self, request):
@@ -55,25 +63,43 @@ class LogoutView(APIView):
         if not request.user.is_authenticated:
             return Response({"detail": "로그인 후 다시 시도해주세요."}, status=status.HTTP_401_UNAUTHORIZED)
         RefreshToken(request.data['refresh']).blacklist()
-        return Response(status=status.HTTP_204_NO_CONTENT)      
+        return Response(status=status.HTTP_204_NO_CONTENT)
         
 class TokenRefreshView(APIView):
     def post(self, request):
-        is_access_token_valid = request.user.is_authenticated
         refresh_token = request.data['refresh']
         try:
             RefreshToken(refresh_token).verify()
-            is_refresh_token_blacklisted = True
         except:
-            is_refresh_token_blacklisted = False
-        if not is_access_token_valid :  
-            if not is_refresh_token_blacklisted:
-                return Response({"detail": "login 을 다시 해주세요."}, status=status.HTTP_401_UNAUTHORIZED)
-            else:
-                new_access_token = str(RefreshToken(refresh_token).access_token)
-        else:
-            user = request.user
-            token = AccessToken.for_user(user)
-            new_access_token = str(token)
+            return Response({"detail" : "로그인 후 다시 시도해주세요."}, status=status.HTTP_401_UNAUTHORIZED)
+        new_access_token = str(RefreshToken(refresh_token).access_token)
         response = Response({"detail": "token refreshed"}, status=status.HTTP_200_OK)
-        return response.set_cookie('access_token', value=str(new_access_token))
+        response.set_cookie('access_token', value=str(new_access_token))
+        return response
+    
+class UpdateUserView(APIView): #request: session, 수정할 값 key: value 쌍 - user 정보 업데이트
+    def patch(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return Response({"detail: 로그인 후 다시 시도해 주세요."}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            user = request.user
+            profile = UserProfile.objects.get(user=user)
+            user_data = user.__dict__
+
+            updated_fields = request.data
+            for field, value in updated_fields.items():
+                if hasattr(profile, field):
+                    setattr(profile, field, value)
+                if field in ['username', 'email']:
+                    setattr(user, field, value)
+
+            profile.save()
+            user.save()
+            profile.refresh_from_db()
+
+            serializer = UserProfileSerializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except:
+            pass
